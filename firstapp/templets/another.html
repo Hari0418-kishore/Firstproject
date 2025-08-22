@@ -1,0 +1,631 @@
+{% load static %}
+{% static "images" as baseUrl %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.6.0/css/fontawesome.min.css" integrity="sha384-NvKbDTEnL+A8F/AA5Tc5kmMLSJHUO868P+lDtTpJIeQdGYaUIuLr4lVGOEA1OcMy" crossorigin="anonymous">
+  <title>Cinema Ticket Booking</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: #fff;
+    }
+    .carousel {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  height: 420px;
+  margin: 30px auto 40px auto;
+  overflow: hidden;
+}
+  .carousel .slides{
+    position:relative;
+    width:100%;
+    height:100%;
+  }
+
+  .slide{
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    transition:transform .6s cubic-bezier(.25,.8,.25,1), opacity .6s, filter .6s;
+    will-change:transform, opacity, filter;
+    opacity:.15; filter:brightness(.4);
+    pointer-events:none;
+    margin-top: 30px;
+  }
+
+  .slide img{
+    width:800px;   /* base width for the centered one (desktop) */
+    height:420px;
+    object-fit:fill;
+    border-radius:14px;
+    box-shadow:0 18px 35px rgba(0,0,0,.35);
+    display:block;
+  }
+
+  /* states assigned by JS */
+  .slide.center{
+    z-index:5;
+    opacity:1;
+    filter:brightness(1);
+    transform:translate(-50%,-50%) scale(1);
+    pointer-events:auto;
+  }
+  .slide.left, .slide.right{
+    z-index:4;
+    opacity:.45;
+    filter:brightness(.7);
+    transform:translate(-50%,-50%) scale(.85);
+  }
+  .slide.far{
+    z-index:1;
+    opacity:0;
+    filter:brightness(.4);
+    pointer-events:none;
+  }
+
+  /* nav buttons */
+  .nav{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:44px; height:44px; border:none; border-radius:50%;
+    background:rgba(0,0,0,.55); color:#fff; font-size:20px; cursor:pointer; z-index:10;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .nav:hover{ background:rgba(0,0,0,.75); }
+  .prev{ left:12px; }
+  .next{ right:12px; }
+
+  @media (max-width:1024px){
+    .slide img{ width:680px; height:360px; }
+  }
+  @media (max-width:768px){
+    .carousel{ height:300px; }
+    .slide img{ width:90vw; height:300px; }
+  }
+  @media (max-width:480px){
+    .carousel{ height:240px; }
+    .slide img{ width:92vw; height:240px; }
+  }
+  .movie-list {
+  padding: 20px;
+  max-width: 1200px; /* Center block width */
+  margin: 10px auto 10px auto; /* Center entire section */
+}
+
+.movie-list h2 {
+  text-align: center;
+  margin: 15px 10px 50px 500px;
+  color: #ff4c4c;
+  font-family: sans-serif;
+  font-size: 30px;
+  position: relative;
+  display: inline-block;
+}
+.movie-list h2::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #ff4c4c, #ffcc00, #ff5e3a);
+  border-radius: 2px;
+  animation: underline-glow 2s infinite;
+}
+
+@keyframes underline-glow {
+  0% { width: 50px; opacity: 0.7; }
+  50% { width: 120px; opacity: 1; }
+  100% { width: 50px; opacity: 0.7; }
+}
+
+.movie-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 columns per row */
+  gap: 20px;
+  justify-items: center;
+  
+}
+
+.movie {
+  background-color: #222;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  transition: transform 0.3s;
+  width: 100%;
+  max-width: 200px; /* Restrict movie card width */
+  margin-bottom: 20px;
+  
+}
+
+.movie img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.movie:hover {
+  transform: scale(1.05);
+}
+
+.movie h3 {
+  margin-top: 10px;
+  font-size: 16px;
+  color: #fff;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .movie-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .movie-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+    
+    .navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  z-index: 1000;
+}
+    
+
+    .logo img {
+      width: 80px;
+      height: auto;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 50px;
+    }
+
+    .nav-links a {
+      color: #ff4c4c;
+      text-decoration: none;
+      font-size: 16px;
+      transition: color 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .nav-links a:hover {
+      color: white;
+    }
+    .search-box {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 60%;
+      padding: 8px 40px 8px 15px;
+      border-radius: 20px;
+      border: none;
+      outline: none;
+      font-size: 14px;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .search-box input:focus {
+      box-shadow: 0 0 10px #ff4c4c;
+    }
+
+    .search-box .icon {
+      position: absolute;
+      right: 21%;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      color: #888;
+      pointer-events: none;
+    }
+    .slider {
+  animation: slide 20s infinite linear;
+}
+
+.slider.paused {
+  animation-play-state: paused;
+}
+
+  @media (max-width: 768px) {
+      body {
+        font-size: 14px;
+      }
+
+      .slider-container, .slider, .slide, .details {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .slide img {
+        width: 100%;
+        height: auto;
+      }
+
+      .details {
+        padding: 10px;
+      }
+
+      .details iframe {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 16/9;
+      }
+
+      .movie-info {
+        text-align: center;
+      }
+    }
+    
+    .details h2{
+      color: #ff4c4c;
+    }
+    .carousel-heading {
+  text-align: center;
+  color: #bdaeae;
+  font-size: 32px;
+  margin-top: 170px;
+  margin-left: 600px; /* below navbar, above carousel */
+  font-family: Arial, sans-serif;
+  letter-spacing: .5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+  padding-bottom: 10px; /* space for underline */
+}
+
+.carousel-heading::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 4px;
+  background: linear-gradient(90deg, #ff4c4c, #ffcc00, #ff5e3a);
+  border-radius: 4px;
+  animation: underline-glow 2s linear infinite;
+}
+
+@keyframes underline-glow {
+  0% { width: 50px; opacity: 0.8; }
+  50% { width: 120px; opacity: 1; }
+  100% { width: 50px; opacity: 0.8; }
+}
+.carousel-heading i{
+  color:#ffcc00;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,.4));
+}
+.carousel-heading .fa-fire{
+  color:#ff5e3a;
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse{
+  0%,100%{transform:scale(1); filter:brightness(1);}
+  50%{transform:scale(1.15); filter:brightness(1.2);}
+}
+/* Mobile view adjustments */
+@media (max-width: 768px) {
+  .carousel-heading {
+    font-size: 24px;
+    margin-top: 160px;
+    padding: 0 10px;
+    margin-left: 80px;
+    margin-bottom: 10px;
+  }
+  .carousel-heading ::after {
+    margin-top: 10px;
+  }
+  
+  .movie-list h2 {
+    font-size: 24px;
+    margin-bottom: 30px;
+    margin-left: 140px;
+  }
+}
+
+@media (max-width: 480px) {
+  .carousel-heading {
+    font-size: 20px;
+    margin-top: 160px;
+    flex-direction: column;
+  }
+  
+  .movie-list h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+}
+.contact-section {
+  text-align: center;
+  background: #1a1a1a;
+  padding: 40px 20px;
+  margin-top: 50px;
+  color: #fff;
+  position: relative;
+}
+
+.contact-section h2 {
+  font-size: 28px;
+  color: #ff4c4c;
+  margin-bottom: 20px;
+  position: relative;
+  display: inline-block;
+}
+
+.contact-section h2::after {
+  content: "";
+  position: absolute;
+  width: 60%;
+  height: 3px;
+  background: linear-gradient(90deg, #ff4c4c, #ffcc00, #ff5e3a);
+  left: 50%;
+  bottom: -8px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+}
+
+.contact-icons {
+  margin: 20px 0;
+}
+
+.contact-icons a {
+  color: #fff;
+  font-size: 28px;
+  margin: 0 12px;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.contact-icons a:hover {
+  transform: scale(1.2);
+  color: #ffcc00;
+}
+
+.contact-section p {
+  font-size: 14px;
+  margin-top: 15px;
+  color: #aaa;
+}
+
+@media (max-width: 480px) {
+  .contact-icons a {
+    font-size: 24px;
+    margin: 0 8px;
+  }
+
+  .contact-section h2 {
+    font-size: 22px;
+  }
+}
+.nav-links a.active {
+  color: #fff !important;
+}
+.nav-links a:focus {
+  outline: none;
+}
+
+
+    
+  </style>
+  <script src="https://kit.fontawesome.com/9d3e35fcd4.js" crossorigin="anonymous"></script>
+  
+
+</head>
+<body>
+    <div class="navbar">
+    <div class="logo">
+      <img src= "{% static 'images/book_my_wish.png'  %}" alt="Cinema Logo" />
+    </div>
+    <div class="search-box">
+      <input type="text" placeholder="Search movies, theatres..." />
+    <div class="icon">🔍</div>
+    </div>
+    <div class="nav-links">
+      <a id="link-home" href="#home"><i class="fa-solid fa-house"></i> Home</a>
+      <a id="link-movies" href="#movies"><i class="fa-solid fa-film"></i> Movies</a>
+      <a id="link-bookings" href="#"><i class="fa-solid fa-ticket"></i> Bookings</a>
+      <a id="link-contact" href="#contact"><i class="fa-solid fa-phone"></i> Contact</a>
+
+    </div>
+  </div>
+  <!-- Image Slider -->
+   <h2 class="carousel-heading" >
+  <i class="fa-solid fa-crown"></i>
+  Must&nbsp;Watch&nbsp;Movies
+  <i class="fa-solid fa-fire"></i>
+</h2>
+  <div class="carousel" id="carousel">
+  <button class="nav prev" id="prev">&#10094;</button>
+  <div class="slides">
+    {% for slideimage in slides %}
+    <div class="slide"><img src= "{{slideimage.img.url}}" alt="Varisu"></div>
+    {% endfor %}
+  </div>
+  <button class="nav next" id="next">&#10095;</button>
+</div>
+  <!-- Movie List Section -->
+  <section class="movie-list" id="movies">
+  <h2>Now Showing</h2>
+  <div class="movie-grid">
+    {% for moovie in movie %}
+    <a href="{% url 'movie_details' moovie.id %}">
+    <div class="movie" data-id="{{moovie.id}}">
+      <img src="{{ moovie.img.url }}" alt="{{moovie.title}}"  />
+      <h3>{{moovie.title}}</h3>
+    </div>
+    </a>
+    {% endfor %}
+    
+  </div>
+</section>
+
+<footer class="contact-section" id="contact">
+  <h2>Contact Us</h2>
+  <div class="contact-icons">
+    <a href="https://www.instagram.com" target="_blank"><i class="fab fa-instagram"></i></a>
+    <a href="mailto:example@gmail.com"><i class="fas fa-envelope"></i></a>
+    <a href="https://wa.me/1234567890" target="_blank"><i class="fab fa-whatsapp"></i></a>
+    <a href="tel:+911234567890"><i class="fas fa-phone"></i></a>
+    <a href="https://www.linkedin.com" target="_blank"><i class="fab fa-linkedin"></i></a>
+  </div>
+  <p>&copy; 2025 Book My Wish. All Rights Reserved.</p>
+</footer>
+
+  <script>
+   const carousel = document.getElementById('carousel');
+  const slides   = Array.from(carousel.querySelectorAll('.slide'));
+  const prevBtn  = document.getElementById('prev');
+  const nextBtn  = document.getElementById('next');
+
+  let current = 0;
+  const spacing = 340;     // horizontal shift between neighbors (px)
+  const autoplayMs = 3000; // autoslide interval
+  let timer = null;
+
+  function update() {
+    const n = slides.length;
+
+    slides.forEach((slide, i) => {
+      // relative index (wrap both directions)
+      let rel = i - current;
+      if (rel >  n/2) rel -= n;
+      if (rel < -n/2) rel += n;
+
+      // position horizontally relative to center
+      const x = rel * spacing;
+
+      // reset classes
+      slide.classList.remove('center', 'left', 'right', 'far');
+
+      if (rel === 0) {
+        slide.classList.add('center');
+        slide.style.transform = `translate(calc(-50% + ${x}px), -50%) scale(1)`;
+      } else if (Math.abs(rel) === 1) {
+        slide.classList.add(rel === -1 ? 'left' : 'right');
+        slide.style.transform = `translate(calc(-50% + ${x}px), -50%) scale(.85)`;
+      } else {
+        slide.classList.add('far');
+        slide.style.transform = `translate(calc(-50% + ${x}px), -50%) scale(.7)`;
+      }
+    });
+  }
+
+  function next() {
+    current = (current + 1) % slides.length;
+    update();
+  }
+
+  function prev() {
+    current = (current - 1 + slides.length) % slides.length;
+    update();
+  }
+
+  function startAuto() {
+    stopAuto();
+    timer = setInterval(next, autoplayMs);
+  }
+
+  function stopAuto() {
+    if (timer) clearInterval(timer);
+  }
+
+  prevBtn.addEventListener('click', () => { prev(); startAuto(); });
+  nextBtn.addEventListener('click', () => { next(); startAuto(); });
+
+  carousel.addEventListener('mouseenter', stopAuto);
+  carousel.addEventListener('mouseleave', startAuto);
+  window.addEventListener('resize', update);
+
+  // init
+  update();
+  startAuto();
+    </script>
+    
+
+<script>
+  // Smooth scroll + set active on click
+  document.querySelectorAll('.nav-links a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth' });
+
+      // Update hash without jumping
+      history.replaceState(null, '', a.getAttribute('href'));
+
+      setActiveLink(a);
+    });
+  });
+
+  function setActiveLink(linkEl){
+    document.querySelectorAll('.nav-links a').forEach(l => l.classList.remove('active'));
+    linkEl.classList.add('active');
+  }
+  a.blur()
+  // Highlight while scrolling
+  const sectionMap = [
+    { id: '#home',    el: document.querySelector('#home'),    link: document.querySelector('#link-home') },
+    { id: '#movies',  el: document.querySelector('#movies'),  link: document.querySelector('#link-movies') },
+    { id: '#contact', el: document.querySelector('#contact'), link: document.querySelector('#link-contact') },
+  ].filter(s => s.el && s.link); // only existing ones
+
+  const observer = new IntersectionObserver((entries) => {
+    // pick the section with the largest intersection ratio
+    const visible = entries
+      .filter(en => en.isIntersecting)
+      .sort((a,b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+    if(visible){
+      const matched = sectionMap.find(s => s.el === visible.target);
+      if(matched) setActiveLink(matched.link);
+    }
+  }, {
+    root: null,
+    threshold: [0.35, 0.6, 0.9] // tune as you like
+  });
+
+  sectionMap.forEach(s => observer.observe(s.el));
+
+  // On first load, set active by hash or default to home
+  window.addEventListener('load', () => {
+    const hash = location.hash || '#home';
+    const match = sectionMap.find(s => s.id === hash) || sectionMap[0];
+    if (match) setActiveLink(match.link);
+  });
+</script>
+
+
+</body>
+</html>

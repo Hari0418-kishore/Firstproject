@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ movie.title }} Booking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* ... (use your preferred CSS from your sample) ... */
+    .seat {
+      width: 30px;
+      height: 30px;
+      margin: 4px;
+      background-color: #444;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-block;
+      text-align: center;
+      line-height: 30px;
+    }
+    .seat.booked {
+      background-color: red;
+      cursor: not-allowed;
+    }
+    .seat.selected {
+      background-color: limegreen;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="movie-card">
+      <div class="movie-title">{{ movie.title }}</div>
+      <div class="movie-desc">{{ movie.genre }} | {{ movie.year }}</div>
+    </div>
+
+    <!-- Date Selector -->
+    <div class="date-scroll">
+      {% for d in next_5_days %}
+        <div class="date-btn{% if forloop.first %} active{% endif %}" onclick="selectDate('{{ d }}', this)">
+          {{ d|date:"M d" }}
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Showtime Buttons -->
+    <div class="showtime-container" id="showtimes"></div>
+
+    <!-- Seats Area -->
+    <div id="seatsArea" style="display:none;">
+      <h5>Available Seats</h5>
+      <div id="seatsContainer" class="mb-3"></div>
+      <button class="btn btn-success" onclick="confirmBooking()">Confirm Booking</button>
+    </div>
+    <input type="hidden" name="csrfmiddlewaretoken" id="csrfToken" value="{{ csrf_token }}">
+  </div>
+
+  <script>
+    let selectedDate = "{{ next_5_days.0 }}";
+    let selectedTime = null;
+    let selectedSeats = [];
+
+    function getCSRFToken() {
+      return document.getElementById('csrfToken').value;
+    }
+
+    function selectDate(date, elem) {
+      selectedDate = date;
+      selectedTime = null;
+      selectedSeats = [];
+      document.getElementById('seatsArea').style.display = 'none';
+      document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+      elem.classList.add('active');
+      loadTimeSlots();
+    }
+
+    function loadTimeSlots() {
+      const showtimeDiv = document.getElementById('showtimes');
+      showtimeDiv.innerHTML = '';
+      fetch(`/get_showtimes/?movie_id={{ movie.id }}&date=${selectedDate}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.times || data.times.length === 0) {
+            showtimeDiv.innerHTML = '<p>No showtimes available.</p>';
+            return;
+          }
+          data.times.forEach(time => {
+            const btn = document.createElement('a');
+            btn.textContent = time;
+            btn.className = 'showtime-btn';
+            btn.href = '#';
+            btn.onclick = (e) => {
+              e.preventDefault();
+              document.querySelectorAll('.showtime-btn').forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              selectedTime = time;
+              loadBookedSeats();
+            };
+            showtimeDiv.appendChild(btn);
+          });
+        });
+    }
+
+    function loadBookedSeats() {
+      const container = document.getElementById('seatsContainer');
+      container.innerHTML = '';
+      selectedSeats = [];
+      fetch(`/load_seats/?movie_id={{ movie.id }}&date=${selectedDate}&time=${selectedTime}`)
+        .then(res => res.json())
+        .then(data => {
+          const allSeats = Array.from({length: 40}, (_, i) => `A${i+1}`);
+          allSeats.forEach(seat => {
+            const div = document.createElement('div');
+            div.textContent = seat;
+            div.className = 'seat';
+            if (data.booked.includes(seat)) {
+              div.classList.add('booked');
+            } else {
+              div.onclick = () => toggleSeat(div, seat);
+            }
+            container.appendChild(div);
+          });
+          document.getElementById('seatsArea').style.display = 'block';
+        });
+    }
+
+    function toggleSeat(elem, seat) {
+      if (elem.classList.contains('selected')) {
+        elem.classList.remove('selected');
+        selectedSeats = selectedSeats.filter(s => s !== seat);
+      } else {
+        elem.classList.add('selected');
+        selectedSeats.push(seat);
+      }
+    }
+
+    function confirmBooking() {
+      if (!selectedDate || !selectedTime || selectedSeats.length === 0) {
+        alert('Please select date, time and at least one seat.');
+        return;
+      }
+      fetch('/confirm_booking/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+          movie_id: "{{ movie.id }}",
+          date: selectedDate,
+          time: selectedTime,
+          selected: selectedSeats
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          alert('Booking Confirmed!');
+          loadBookedSeats();
+        } else {
+          alert('Error: ' + (data.message || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        alert('Network error: ' + error.message);
+      });
+    }
+
+    // Initial load
+    window.onload = loadTimeSlots;
+  </script>
+</body>
+</html>

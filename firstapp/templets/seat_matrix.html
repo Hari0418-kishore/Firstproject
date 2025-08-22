@@ -1,0 +1,412 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ movie.title }} - Showtimes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<style>
+  .seat-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+.active-button {
+  background-color: #0dcaf0 !important;
+  color: white !important;
+  border-color: #0dcaf0 !important;
+}
+.seat.selected {
+  background-color: #0dcaf0 !important;
+  color: white;
+}
+
+.seat {
+  width: 30px;
+  height: 30px;
+  background-color: #444;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.seat.booked {
+  background-color: red;
+  cursor: not-allowed;
+}
+
+</style>
+<body class="bg-dark text-white">
+  <div class="container mt-5">
+
+    <!-- Movie Title -->
+    <h2 class="text-center mb-4">{{ movie.title }}</h2>
+
+    <!-- Date Buttons -->
+    <div class="d-flex justify-content-center gap-2 flex-wrap mb-4">
+      {% for date in next_5_days %}
+  <button class="btn btn-outline-light m-2 date-button"
+          data-date="{{ date|date:'Y-m-d' }}">
+    {{ date|date:'D, M d' }}
+  </button>
+{% endfor %}
+
+    </div>
+
+    <!-- Showtimes will appear here -->
+   <!-- Add this in your template, e.g., movie_showtimes.html -->
+<div id="showtimes-container" class="mt-4 text-center"></div>
+<div id="seat-matrix-container" class="mt-4"></div>
+
+{% for row in rows %}
+<div class="seat-row">
+    <span class="text-white me-2">{{ row.label }}</span>
+    {% for seat in row.seats %}
+        {% if forloop.counter == 9 or forloop.counter == 17 %}
+            <div style="width:20px;"></div>
+        {% endif %}
+        <button class="seat {% if seat.booked %}booked{% endif %}"
+                data-seat="{{ seat.id }}"
+                {% if seat.booked %}disabled{% endif %}>
+            {{ seat.id|slice:"1:" }}
+        </button>
+    {% endfor %}
+</div>
+
+{% endfor %}
+<div class="screen text-center mb-3" style="background:#ccc; height:40px; border-radius:10px; color:#d09124; margin-bottom: 50px; display:none;">
+    SCREEN 
+</div>
+<!-- Selected Seats Display -->
+<div class="text-center mt-3">
+  <h5>Selected Seats:</h5>
+  <p id="selected-seats" class="text-info">None</p>
+</div>
+
+<!-- Book Now Button -->
+<div class="text-center mt-3">
+  <button id="book-now-btn" class="btn btn-success" disabled>Book Now</button>
+</div>
+
+
+
+  <!-- Updated JavaScript -->
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const dateButtons = document.querySelectorAll(".date-button");
+    const showtimesContainer = document.getElementById("showtimes-container");
+    const seatMatrixContainer = document.getElementById("seat-matrix-container");
+
+    let selectedDate = null;
+    let movieId = "{{ movie.id }}";  // Assuming this variable is passed from Django
+
+    // Handle Date Click
+    dateButtons.forEach(button => {
+      button.addEventListener("click", function () {
+        selectedDate = this.getAttribute("data-date"); // already in YYYY-MM-DD format from template
+        fetchShowtimes(selectedDate);
+      });
+    });
+
+    // Fetch Showtimes for selected date
+    function fetchShowtimes(date) {
+      fetch(`/get_showtimes/?movie_id=${movieId}&date=${date}`)
+        .then(response => response.json())
+        .then(data => {
+          console.log("Showtimes:", data);
+          showtimesContainer.innerHTML = "";
+
+          if (data.showtimes && data.showtimes.length > 0) {
+            data.showtimes.forEach(showtime => {
+              const btn = document.createElement("button");
+              btn.textContent = showtime.time;
+              btn.classList.add("btn", "btn-sm", "btn-outline-info", "m-2");
+              btn.addEventListener("click", () => loadSeats(showtime.time));
+              showtimesContainer.appendChild(btn);
+            });
+          } else {
+            showtimesContainer.innerHTML = "<p>No showtimes available for this date.</p>";
+          }
+        })
+        .catch(error => {
+          console.error("Error fetching showtimes:", error);
+        });
+    }
+
+    // Load Seats for selected time
+    function loadSeats(time) {
+    fetch(`/load_seats/?movie_id=${movieId}&date=${selectedDate}&time=${time}`)
+        .then(response => response.text())
+        .then(html => {
+            seatMatrixContainer.innerHTML = html;
+            attachSeatSelection();
+        })
+        .catch(error => {
+            console.error("Error loading seats:", error);
+        });
+}
+
+function attachSeatSelection() {
+    const seatButtons = document.querySelectorAll(".seat:not(.booked)");
+    seatButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            btn.classList.toggle("selected");
+        });
+    });
+}
+
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+  const dateButtons = document.querySelectorAll(".date-button");
+  const showtimesContainer = document.getElementById("showtimes-container");
+  const seatMatrixContainer = document.getElementById("seat-matrix-container");
+
+  let selectedDate = null;
+  let selectedShowtimeBtn = null;
+  let movieId = "{{ movie.id }}";
+
+  // Handle Date Click
+  dateButtons.forEach(button => {
+    button.addEventListener("click", function () {
+      // Remove active state from all date buttons
+      dateButtons.forEach(btn => btn.classList.remove("active-button"));
+
+      // Set active on current button
+      this.classList.add("active-button");
+      selectedDate = this.getAttribute("data-date");
+
+      // Clear old showtimes and seats
+      showtimesContainer.innerHTML = "";
+      seatMatrixContainer.innerHTML = "";
+      selectedShowtimeBtn = null;
+
+      fetchShowtimes(selectedDate);
+    });
+  });
+
+  function fetchShowtimes(date) {
+    fetch(`/get_showtimes/?movie_id=${movieId}&date=${date}`)
+      .then(response => response.json())
+      .then(data => {
+        showtimesContainer.innerHTML = "";
+
+        if (data.showtimes && data.showtimes.length > 0) {
+          data.showtimes.forEach(showtime => {
+            const btn = document.createElement("button");
+            btn.textContent = showtime.time;
+            btn.classList.add("btn", "btn-sm", "btn-outline-info", "m-2");
+
+            btn.addEventListener("click", () => {
+              if (selectedShowtimeBtn) {
+                selectedShowtimeBtn.classList.remove("active-button");
+              }
+              btn.classList.add("active-button");
+              selectedShowtimeBtn = btn;
+
+              loadSeats(showtime.time);
+            });
+
+            showtimesContainer.appendChild(btn);
+          });
+        } else {
+          showtimesContainer.innerHTML = "<p>No showtimes available for this date.</p>";
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching showtimes:", error);
+      });
+  }
+
+  function loadSeats(time) {
+    fetch(`/load_seats/?movie_id=${movieId}&date=${selectedDate}&time=${time}`)
+      .then(response => response.text())
+      .then(html => {
+        seatMatrixContainer.innerHTML = html;
+        attachSeatSelection();
+      })
+      .catch(error => {
+        console.error("Error loading seats:", error);
+      });
+  }
+
+  function attachSeatSelection() {
+    const seatButtons = document.querySelectorAll(".seat:not(.booked)");
+    seatButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        btn.classList.toggle("selected");
+      });
+    });
+  }
+});
+
+
+document.addEventListener("DOMContentLoaded", function () {
+  const dateButtons = document.querySelectorAll(".date-button");
+  const showtimesContainer = document.getElementById("showtimes-container");
+  const seatMatrixContainer = document.getElementById("seat-matrix-container");
+  const selectedSeatsDisplay = document.getElementById("selected-seats");
+  const bookNowBtn = document.getElementById("book-now-btn");
+
+  let selectedDate = null;
+  let selectedShowtimeBtn = null;
+  let selectedTime = null;
+  let movieId = "{{ movie.id }}";
+  let selectedSeats = [];
+
+  // Handle Date Button Click
+  dateButtons.forEach(button => {
+    button.addEventListener("click", function () {
+      dateButtons.forEach(btn => btn.classList.remove("active-button"));
+      this.classList.add("active-button");
+      selectedDate = this.getAttribute("data-date");
+
+      showtimesContainer.innerHTML = "";
+      seatMatrixContainer.innerHTML = "";
+      selectedShowtimeBtn = null;
+      selectedTime = null;
+      selectedSeats = [];
+      updateSelectedSeats();
+      bookNowBtn.disabled = true;
+
+      fetchShowtimes(selectedDate);
+    });
+  });
+
+  function fetchShowtimes(date) {
+    fetch(`/get_showtimes/?movie_id=${movieId}&date=${date}`)
+      .then(response => response.json())
+      .then(data => {
+        showtimesContainer.innerHTML = "";
+        if (data.showtimes && data.showtimes.length > 0) {
+          data.showtimes.forEach(showtime => {
+            const btn = document.createElement("button");
+            btn.textContent = showtime.time;
+            btn.classList.add("btn", "btn-sm", "btn-outline-info", "m-2");
+
+            btn.addEventListener("click", () => {
+              if (selectedShowtimeBtn) {
+                selectedShowtimeBtn.classList.remove("active-button");
+              }
+              btn.classList.add("active-button");
+              selectedShowtimeBtn = btn;
+              selectedTime = showtime.time;
+              selectedSeats = [];
+              updateSelectedSeats();
+              bookNowBtn.disabled = true;
+
+              loadSeats(showtime.time);
+            });
+
+            showtimesContainer.appendChild(btn);
+          });
+        } else {
+          showtimesContainer.innerHTML = "<p>No showtimes available for this date.</p>";
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching showtimes:", error);
+      });
+  }
+
+  function loadSeats(time) {
+    fetch(`/load_seats/?movie_id=${movieId}&date=${selectedDate}&time=${time}`)
+      .then(response => response.text())
+      .then(html => {
+        seatMatrixContainer.innerHTML = html;
+        attachSeatSelection();
+      })
+      .catch(error => {
+        console.error("Error loading seats:", error);
+      });
+  }
+
+  function attachSeatSelection() {
+    const seatButtons = document.querySelectorAll(".seat:not(.booked)");
+    seatButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const seatId = btn.getAttribute("data-seat");
+        btn.classList.toggle("selected");
+
+        if (selectedSeats.includes(seatId)) {
+          selectedSeats = selectedSeats.filter(s => s !== seatId);
+        } else {
+          selectedSeats.push(seatId);
+        }
+
+        updateSelectedSeats();
+      });
+    });
+  }
+
+  function updateSelectedSeats() {
+    if (selectedSeats.length > 0) {
+      selectedSeatsDisplay.textContent = selectedSeats.join(', ');
+      bookNowBtn.disabled = false;
+    } else {
+      selectedSeatsDisplay.textContent = "None";
+      bookNowBtn.disabled = true;
+    }
+  }
+
+  // Handle Book Now Button Click
+  bookNowBtn.addEventListener("click", () => {
+    if (!selectedDate || !selectedTime || selectedSeats.length === 0) {
+      alert("Please select date, time and seats.");
+      return;
+    }
+
+    const data = {
+      movie_id: movieId,
+      date: selectedDate,
+      time: selectedTime,
+      selected: selectedSeats
+    };
+
+    fetch("/confirm_booking/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken()
+      },
+      body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === "success") {
+        alert(data.message);
+        selectedSeats = [];
+        updateSelectedSeats();
+        loadSeats(selectedTime); // Refresh seat layout
+      } else {
+        alert(data.message || "Booking failed.");
+      }
+    })
+    .catch(error => {
+      console.error("Booking error:", error);
+      alert("Something went wrong during booking.");
+    });
+  });
+
+  function getCSRFToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      let cookie = cookies[i].trim();
+      if (cookie.startsWith(name + '=')) {
+        return decodeURIComponent(cookie.substring(name.length + 1));
+      }
+    }
+    return '';
+  }
+});
+</script>
+
+
+
+
+
+
+</body>
+</html>

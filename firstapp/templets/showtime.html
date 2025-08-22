@@ -1,0 +1,321 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ movie.title }} - Showtimes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<style>
+  .seat-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+.active-button {
+  background-color: #0dcaf0 !important;
+  color: white !important;
+  border-color: #0dcaf0 !important;
+}
+.seat.selected {
+  background-color: #0dcaf0 !important;
+  color: white;
+}
+
+.seat {
+  width: 30px;
+  height: 30px;
+  background-color: #444;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.seat.booked {
+  background-color: red;
+  cursor: not-allowed;
+}
+
+</style>
+<body class="bg-dark text-white">
+  <div class="container mt-5">
+
+    <!-- Movie Title -->
+    <h2 class="text-center mb-4">{{ movie.title }}</h2>
+
+    <!-- Date Buttons -->
+    <div class="d-flex justify-content-center gap-2 flex-wrap mb-4">
+      {% for date in next_5_days %}
+  <button class="btn btn-outline-light m-2 date-button"
+          data-date="{{ date|date:'Y-m-d' }}">
+    {{ date|date:'D, M d' }}
+  </button>
+{% endfor %}
+
+    </div>
+
+    <!-- Showtimes will appear here -->
+   <!-- Add this in your template, e.g., movie_showtimes.html -->
+<div id="showtimes-container" class="mt-4 text-center"></div>
+<div id="seat-matrix-container" class="mt-4"></div>
+
+{% for row in rows %}
+<div class="seat-row">
+    <span class="text-white me-2">{{ row.label }}</span>
+    {% for seat in row.seats %}
+        {% if forloop.counter == 9 or forloop.counter == 17 %}
+            <div style="width:20px;"></div>
+        {% endif %}
+        <button class="seat {% if seat.booked %}booked{% endif %}"
+                data-seat="{{ seat.id }}"
+                {% if seat.booked %}disabled{% endif %}>
+            {{ seat.id|slice:"1:" }}
+        </button>
+    {% endfor %}
+</div>
+
+{% endfor %}
+<div class="screen text-center mb-3" style="background:#ccc; height:40px; border-radius:10px; color:#d09124; margin-bottom: 50px; display:none;">
+    SCREEN 
+</div>
+<!-- Selected Seats Display -->
+<div class="text-center mt-3">
+  <h5>Selected Seats:</h5>
+  <p id="selected-seats" class="text-info">None</p>
+</div>
+
+<!-- Book Now Button -->
+<div class="text-center mt-3">
+  <button id="book-now-btn" class="btn btn-success" disabled>Book Now</button>
+</div>
+
+<!--seat pop-->
+<!-- Booking Confirmation Modal -->
+<div class="modal fade" id="bookingModal" tabindex="-1" aria-labelledby="bookingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-white border border-info">
+      <div class="modal-header border-bottom border-info">
+        <h5 class="modal-title" id="bookingModalLabel">Booking Confirmed</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="{{ movie.poster.url }}" alt="{{ movie.title }}" class="img-fluid mb-3 rounded" style="max-height: 200px;">
+        <h5>{{ movie.title }}</h5>
+        <p><strong>Showtime:</strong> <span id="modal-time"></span></p>
+        <p><strong>Seats:</strong> <span id="modal-seats"></span></p>
+      </div>
+      <div class="modal-footer justify-content-center border-top border-info">
+        <button type="button" class="btn btn-info" id="modal-ok-btn">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+  <!-- Updated JavaScript -->
+  
+
+  <script>
+    
+document.addEventListener("DOMContentLoaded", function () {
+
+    const isAuthenticated = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
+
+    const dateButtons = document.querySelectorAll(".date-button");
+    const showtimesContainer = document.getElementById("showtimes-container");
+    const seatMatrixContainer = document.getElementById("seat-matrix-container");
+    const selectedSeatsDisplay = document.getElementById("selected-seats");
+    const bookNowBtn = document.getElementById("book-now-btn");
+
+    let selectedDate = null;
+    let selectedShowtimeBtn = null;
+    let selectedTime = null;
+    let movieId = "{{ movie.id }}";
+    let selectedSeats = [];
+
+    // Handle Date Button Click
+    dateButtons.forEach(button => {
+        button.addEventListener("click", function () {
+            dateButtons.forEach(btn => btn.classList.remove("active-button"));
+            this.classList.add("active-button");
+            selectedDate = this.getAttribute("data-date");
+
+            showtimesContainer.innerHTML = "";
+            seatMatrixContainer.innerHTML = "";
+            selectedShowtimeBtn = null;
+            selectedTime = null;
+            selectedSeats = [];
+            updateSelectedSeats();
+            bookNowBtn.disabled = true;
+
+            fetchShowtimes(selectedDate);
+        });
+    });
+
+    // Fetch Showtimes
+    function fetchShowtimes(date) {
+        fetch(`/get_showtimes/?movie_id=${movieId}&date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                showtimesContainer.innerHTML = "";
+                if (data.showtimes && data.showtimes.length > 0) {
+                    data.showtimes.forEach(showtime => {
+                        const btn = document.createElement("button");
+                        btn.textContent = showtime.time;
+                        btn.classList.add("btn", "btn-sm", "btn-outline-info", "m-2");
+
+                        btn.addEventListener("click", () => {
+                            if (selectedShowtimeBtn) {
+                                selectedShowtimeBtn.classList.remove("active-button");
+                            }
+                            btn.classList.add("active-button");
+                            selectedShowtimeBtn = btn;
+                            selectedTime = showtime.time;
+                            selectedSeats = [];
+                            updateSelectedSeats();
+                            bookNowBtn.disabled = true;
+
+                            loadSeats(showtime.time);
+                        });
+
+                        showtimesContainer.appendChild(btn);
+                    });
+                } else {
+                    showtimesContainer.innerHTML = "<p>No showtimes available for this date.</p>";
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching showtimes:", error);
+            });
+    }
+
+    // Load Seats (with login check)
+    function loadSeats(time) {
+        if (!isAuthenticated) {
+    const params = new URLSearchParams({
+        movie_id: movieId,
+        date: selectedDate,
+        time: time
+    });
+    const nextUrl = `/movie/${movieId}/showtime/?${params.toString()}`;
+    window.location.href = `/login/?next=${encodeURIComponent(nextUrl)}`;
+    return;
+}
+
+
+        fetch(`/load_seats/?movie_id=${movieId}&date=${selectedDate}&time=${time}`)
+            .then(response => response.text())
+            .then(html => {
+                seatMatrixContainer.innerHTML = html;
+                attachSeatSelection();
+            })
+            .catch(error => {
+                console.error("Error loading seats:", error);
+            });
+    }
+
+    // Seat selection handler
+    function attachSeatSelection() {
+        const seatButtons = document.querySelectorAll(".seat:not(.booked)");
+        seatButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const seatId = btn.getAttribute("data-seat");
+                btn.classList.toggle("selected");
+
+                if (selectedSeats.includes(seatId)) {
+                    selectedSeats = selectedSeats.filter(s => s !== seatId);
+                } else {
+                    selectedSeats.push(seatId);
+                }
+
+                updateSelectedSeats();
+            });
+        });
+    }
+
+    // Update Selected Seats Display
+    function updateSelectedSeats() {
+        if (selectedSeats.length > 0) {
+            selectedSeatsDisplay.textContent = selectedSeats.join(', ');
+            bookNowBtn.disabled = false;
+        } else {
+            selectedSeatsDisplay.textContent = "None";
+            bookNowBtn.disabled = true;
+        }
+    }
+
+    // Book Now Button Click
+    bookNowBtn.addEventListener("click", () => {
+        if (!selectedDate || !selectedTime || selectedSeats.length === 0) {
+            alert("Please select date, time and seats.");
+            return;
+        }
+
+        const data = {
+            movie_id: movieId,
+            date: selectedDate,
+            time: selectedTime,
+            selected: selectedSeats
+        };
+
+        fetch("/confirm_booking/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                document.getElementById("modal-time").textContent = selectedTime;
+                document.getElementById("modal-seats").textContent = selectedSeats.join(", ");
+
+                const modal = new bootstrap.Modal(document.getElementById("bookingModal"));
+                modal.show();
+
+                document.getElementById("modal-ok-btn").addEventListener("click", function () {
+                    window.location.href = "/";
+                });
+            } else {
+                alert(data.message || "Booking failed.");
+            }
+        })
+        .catch(error => {
+            console.error("Booking error:", error);
+            alert("Something went wrong during booking.");
+        });
+    });
+
+    // CSRF Token Helper
+    function getCSRFToken() {
+        const name = 'csrftoken';
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            let cookie = cookies[i].trim();
+            if (cookie.startsWith(name + '=')) {
+                return decodeURIComponent(cookie.substring(name.length + 1));
+            }
+        }
+        return '';
+    }
+});
+
+
+  
+  
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+
+
+
+
+
+</body>
+</html>
