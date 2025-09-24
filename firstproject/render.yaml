@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: cinema-ticket-app
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py migrate
+      python manage.py createsuperuser --noinput || true
+    startCommand: gunicorn firstproject.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DJANGO_SUPERUSER_USERNAME
+        value: admin
+      - key: DJANGO_SUPERUSER_EMAIL
+        value: admin@example.com
+      - key: DJANGO_SUPERUSER_PASSWORD
+        value: admin123
