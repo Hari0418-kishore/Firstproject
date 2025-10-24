@@ -9,6 +9,9 @@ class Slides(models.Model):
     img = models.ImageField(upload_to= 'img')
 
 
+import re
+from django.db import models
+
 class Movie(models.Model):
     title = models.CharField(max_length=100)
     year = models.PositiveIntegerField()
@@ -23,10 +26,28 @@ class Movie(models.Model):
         return [name.strip() for name in self.cast.split(',') if name.strip()]
 
     def youtube_watch_link(self):
+        # Converts embed to normal YouTube watch link
         return self.trailer.replace('/embed/', '/watch?v=')
+
+    def embed_url(self):
+        """
+        Always return a valid YouTube embed URL, no matter what link was given.
+        Accepts formats:
+        - https://www.youtube.com/watch?v=xxxx
+        - https://youtu.be/xxxx
+        - https://www.youtube.com/embed/xxxx
+        - https://youtube.com/shorts/xxxx
+        """
+        url = self.trailer.strip()
+        match = re.search(r'(?:v=|be/|embed/|shorts/)([\w-]{11})', url)
+        if match:
+            video_id = match.group(1)
+            return f"https://www.youtube.com/embed/{video_id}"
+        return url
 
     def __str__(self):
         return self.title
+
     
 class Showtime(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='showtimes')

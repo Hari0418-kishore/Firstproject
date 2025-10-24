@@ -133,7 +133,8 @@
       </div>
     </div>
 
-    <iframe src="{{ movie.trailer }}" allowfullscreen></iframe>
+    <iframe src="{{ movie.embed_url|safe }}" allowfullscreen></iframe>
+
 
     <div class="cta">
   <a href="{% url 'showtime_and_seats' movie.id %}" class="btn"><i class="fa-solid fa-chair"></i> Select Showtime & Seats</a>

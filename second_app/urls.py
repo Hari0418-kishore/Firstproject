@@ -8,6 +8,4 @@ urlpatterns = [
     path('get_showtimes/', views.get_showtimes, name='get_showtimes'),
     path('load_seats/', views.load_seats, name='load_seats'),
     path('confirm_booking/', views.confirm_booking, name='confirm_booking'),
-    
-
     ]

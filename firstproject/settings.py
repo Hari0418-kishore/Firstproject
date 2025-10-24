@@ -40,8 +40,20 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    
 ]
+INSTALLED_APPS += [
+    "cloudinary",
+    "cloudinary_storage",
+]
+
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": os.environ.get("dy5txulrm"),
+    "API_KEY": os.environ.get("356424946634654"),
+    "API_SECRET": os.environ.get("EQR1ILFXLpgVNmR4bffL5lmPxrM"),
+}
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -80,9 +92,9 @@ import dj_database_url
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # fallback for local dev
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=False  # True only when connecting to Neon/Render
     )
 }
 
